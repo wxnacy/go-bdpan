@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"path/filepath"
 	"strconv"
 )
 
@@ -80,6 +81,17 @@ func DeleteFile(accessToken string, path string) (*ManageFileRes, error) {
 	return DeleteFiles(accessToken, paths)
 }
 
+// 移动文件列表
+func MoveFiles(accessToken string, dir string, paths ...string) (*ManageFileRes, error) {
+	filelist := make([]*FileManager, 0)
+	for _, p := range paths {
+		var name = filepath.Base(p)
+		filelist = append(filelist, NewFileManager(p, dir, name))
+	}
+	req := NewManageFileReq(OperaMove, filelist)
+	return ManageFile(accessToken, req)
+}
+
 func ManageFile(accessToken string, req *ManageFileReq) (*ManageFileRes, error) {
 
 	var r *http.Response
@@ -88,6 +100,15 @@ func ManageFile(accessToken string, req *ManageFileReq) (*ManageFileRes, error) 
 		r, _ = GetClient().
 			FilemanagerApi.
 			Filemanagerdelete(context.Background()).
+			AccessToken(accessToken).
+			Async(int32(req.Async)).
+			Ondup(string(req.Ondup)).
+			Filelist(req.GetFilelistString()).
+			Execute()
+	case OperaMove:
+		r, _ = GetClient().
+			FilemanagerApi.
+			Filemanagermove(context.Background()).
 			AccessToken(accessToken).
 			Async(int32(req.Async)).
 			Ondup(string(req.Ondup)).

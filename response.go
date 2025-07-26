@@ -55,8 +55,8 @@ func ToInterface[T any](r *http.Response) (*T, error) {
 	if err != nil {
 		return nil, err
 	}
-	GetLogger().Infof("%s code %d\n", r.Request.URL.Path, r.StatusCode)
-	GetLogger().Infof("%s response %s\n", r.Request.URL.Path, string(bodyBytes))
+	GetLogger().Debugf("%s code %d\n", r.Request.URL.Path, r.StatusCode)
+	GetLogger().Debugf("%s response %s\n", r.Request.URL.Path, string(bodyBytes))
 	if r.StatusCode == 200 {
 		if err := json.Unmarshal(bodyBytes, &i); err != nil {
 			return nil, err
