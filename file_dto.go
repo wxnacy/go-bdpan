@@ -288,6 +288,11 @@ func (f FileInfo) GetFileTypeEmoji() string {
 			// 🚀
 			return "\U0001f680"
 		case 6:
+			var ext = filepath.Ext(f.Path)
+			switch ext {
+			case ".zip":
+				return ""
+			}
 			// 其他 🤷
 			return "\U0001f937"
 		case 7:

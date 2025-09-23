@@ -65,8 +65,7 @@ func SearchFile(accessToken string, req *SearchFileReq) (*SearchFileRes, error) 
 }
 
 // 删除文件列表
-func DeleteFiles(accessToken string, paths []string) (*ManageFileRes, error) {
-
+func DeleteFiles(accessToken string, paths ...string) (*ManageFileRes, error) {
 	filelist := make([]*FileManager, 0)
 	for _, p := range paths {
 		filelist = append(filelist, NewFileManager(p, "", ""))
@@ -76,16 +75,11 @@ func DeleteFiles(accessToken string, paths []string) (*ManageFileRes, error) {
 	return ManageFile(accessToken, req)
 }
 
-func DeleteFile(accessToken string, path string) (*ManageFileRes, error) {
-	paths := []string{path}
-	return DeleteFiles(accessToken, paths)
-}
-
 // 移动文件列表
 func MoveFiles(accessToken string, dir string, paths ...string) (*ManageFileRes, error) {
 	filelist := make([]*FileManager, 0)
 	for _, p := range paths {
-		var name = filepath.Base(p)
+		name := filepath.Base(p)
 		filelist = append(filelist, NewFileManager(p, dir, name))
 	}
 	req := NewManageFileReq(OperaMove, filelist)
@@ -93,7 +87,6 @@ func MoveFiles(accessToken string, dir string, paths ...string) (*ManageFileRes,
 }
 
 func ManageFile(accessToken string, req *ManageFileReq) (*ManageFileRes, error) {
-
 	var r *http.Response
 	switch req.Opera {
 	case OperaDelete:
