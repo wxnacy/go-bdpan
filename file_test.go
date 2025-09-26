@@ -71,7 +71,7 @@ func TestDeleteFile(t *testing.T) {
 		fmt.Println(f.Path)
 		if !f.IsDir() {
 			fmt.Printf("Delete path: %s\n", f.Path)
-			res, err := DeleteFile(accessToken, f.Path)
+			res, err := DeleteFiles(accessToken, f.Path)
 			assert.NoError(t, err)
 			info := res.Info[0]
 			assert.Equal(t, info.Errno, 0)
@@ -79,4 +79,34 @@ func TestDeleteFile(t *testing.T) {
 			return
 		}
 	}
+}
+
+func TestPreCreateFile(t *testing.T) {
+	// 仅在有access token时执行测试
+	if accessToken == "" {
+		t.Skip("BDPAN_ACCESS_TOKEN is not set")
+	}
+
+	// 准备测试数据
+	path := "/apps/bdpan/for_test/test_precreate.txt"
+	size := int32(1024) // 1KB
+	// 对于小于4MB的文件，block_list只包含一个MD5值
+	blockList := []string{"e08b8e863d2fffce685530608305598c"}
+
+	// 创建预上传请求
+	req := NewPreCreateFileReq(path, size, blockList)
+	// 设置文件命名策略为1（当path冲突时，进行重命名）
+	req.SetRtype(1)
+
+	// 调用预上传函数
+	res, err := PreCreateFile(accessToken, req)
+	assert.NoError(t, err)
+
+	// 验证返回结果
+	assert.Equal(t, int32(0), res.Errno, "预上传失败")
+	assert.NotEmpty(t, res.Uploadid, "返回的uploadid不能为空")
+	assert.Equal(t, path, res.Path, "返回的path与请求的path不一致")
+
+	// 打印返回结果
+	fmt.Printf("预上传成功: uploadid=%s, path=%s\n", res.Uploadid, res.Path)
 }

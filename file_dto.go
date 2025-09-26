@@ -337,3 +337,101 @@ func (f FileInfo) GetCategory() string {
 	}
 	return "未知"
 }
+
+// PreCreateFileReq 预上传请求参数
+func NewPreCreateFileReq(path string, size int32, blockList []string) *PreCreateFileReq {
+	return &PreCreateFileReq{
+		Path:     path,
+		Size:     size,
+		Isdir:    0,
+		Autoinit: 1,
+		BlockList: blockList,
+	}
+}
+
+// PreCreateFileReq 预上传请求参数
+// https://pan.baidu.com/union/doc/3ksg0s9r7
+// 预上传是通知网盘云端新建一个上传任务，网盘云端返回唯一ID uploadid 来标识此上传任务。
+type PreCreateFileReq struct {
+	// 上传后使用的文件绝对路径，需要urlencode
+	Path string
+	// 文件和目录两种情况：上传文件时，表示文件的大小，单位B；上传目录时，表示目录的大小，目录的话大小默认为0
+	Size int32
+	// 是否为目录，0 文件，1 目录
+	Isdir int32
+	// 固定值1
+	Autoinit int32
+	// 文件各分片MD5数组的json串
+	// 如果上传的文件小于4MB，其md5值（32位小写）即为block_list字符串数组的唯一元素
+	// 如果上传的文件大于4MB，需要将上传的文件按照4MB大小在本地切分成分片，不足4MB的分片自动成为最后一个分片，所有分片的md5值（32位小写）组成的字符串数组即为block_list
+	BlockList []string
+	// 文件命名策略
+	// 1 表示当path冲突时，进行重命名
+	// 2 表示当path冲突且block_list不同时，进行重命名
+	// 3 当云端存在同名文件时，对该文件进行覆盖
+	Rtype int32
+	// 上传ID
+	Uploadid string
+	// 文件MD5，32位小写
+	ContentMD5 string
+	// 文件校验段的MD5，32位小写，校验段对应文件前256KB
+	SliceMD5 string
+	// 客户端创建时间， 默认为当前时间戳
+	LocalCTime string
+	// 客户端修改时间，默认为当前时间戳
+	LocalMTime string
+}
+
+func (r *PreCreateFileReq) SetRtype(rtype int32) *PreCreateFileReq {
+	r.Rtype = rtype
+	return r
+}
+
+func (r *PreCreateFileReq) SetUploadid(uploadid string) *PreCreateFileReq {
+	r.Uploadid = uploadid
+	return r
+}
+
+func (r *PreCreateFileReq) SetContentMD5(contentMD5 string) *PreCreateFileReq {
+	r.ContentMD5 = contentMD5
+	return r
+}
+
+func (r *PreCreateFileReq) SetSliceMD5(sliceMD5 string) *PreCreateFileReq {
+	r.SliceMD5 = sliceMD5
+	return r
+}
+
+func (r *PreCreateFileReq) SetLocalCTime(localCTime string) *PreCreateFileReq {
+	r.LocalCTime = localCTime
+	return r
+}
+
+func (r *PreCreateFileReq) SetLocalMTime(localMTime string) *PreCreateFileReq {
+	r.LocalMTime = localMTime
+	return r
+}
+
+// GetBlockListString 返回block_list的json字符串
+func (r *PreCreateFileReq) GetBlockListString() string {
+	bytesData, _ := json.Marshal(r.BlockList)
+	return string(bytesData)
+}
+
+// PreCreateFileRes 预上传响应参数
+type PreCreateFileRes struct {
+	// 错误码
+	Errno int32 `json:"errno,omitempty"`
+	// 文件的绝对路径
+	Path string `json:"path,omitempty"`
+	// 上传唯一ID标识此上传任务
+	Uploadid string `json:"uploadid,omitempty"`
+	// 返回类型，系统内部状态字段
+	ReturnType int32 `json:"return_type,omitempty"`
+	// 需要上传的分片序号列表，索引从0开始
+	BlockList []int `json:"block_list,omitempty"`
+	// 请求ID
+	RequestId int64 `json:"request_id,omitempty"`
+}
+
+// ... existing code ...

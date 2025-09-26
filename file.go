@@ -10,6 +10,7 @@ import (
 )
 
 // 获取文件列表
+// https://pan.baidu.com/union/doc/nksg0sat9
 func GetFileList(accessToken string, req *GetFileListReq) (*GetFileListRes, error) {
 	_, r, _ := GetClient().
 		FileinfoApi.Xpanfilelist(context.Background()).
@@ -109,4 +110,20 @@ func ManageFile(accessToken string, req *ManageFileReq) (*ManageFileRes, error) 
 			Execute()
 	}
 	return ToInterface[ManageFileRes](r)
+}
+
+// 预上传
+// https://pan.baidu.com/union/doc/3ksg0s9r7
+// 预上传是通知网盘云端新建一个上传任务，网盘云端返回唯一ID uploadid 来标识此上传任务。
+func PreCreateFile(accessToken string, req *PreCreateFileReq) (*PreCreateFileRes, error) {
+	_, r, _ := GetClient().
+		FileuploadApi.Xpanfileprecreate(context.Background()).
+		AccessToken(accessToken).
+		Path(req.Path).
+		Isdir(req.Isdir).
+		Size(req.Size).
+		Autoinit(req.Autoinit).
+		BlockList(req.GetBlockListString()).
+		Execute()
+	return ToInterface[PreCreateFileRes](r)
 }
