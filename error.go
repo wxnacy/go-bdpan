@@ -381,6 +381,3 @@ func GetApiErrByErrno(errno int32) *ApiErr {
 	unknownErr.Remark = fmt.Sprintf("未知的错误码: %d", errno)
 	return &unknownErr
 }
-
-func IsError() bool {
-}
