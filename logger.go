@@ -25,7 +25,7 @@ func GetLogger() *logrus.Logger {
 func initLogger() *logrus.Logger {
 	// 初始化 logrus.Logger 的具体实现
 	logger := logrus.New()
-	logger.SetLevel(logrus.InfoLevel) // 设置日志级别
+	// logger.SetLevel(logrus.InfoLevel) // 设置日志级别
 	logger.SetFormatter(&LogFormatter{
 		TextFormatter: &logrus.TextFormatter{
 			ForceColors:     true,
@@ -60,6 +60,12 @@ func SetOutputFile(path string) error {
 		return err
 	}
 	GetLogger().SetOutput(logFile)
+	return nil
+}
+
+// 将日志输出到写入流中
+func SetOutputWriter(w io.Writer) error {
+	GetLogger().SetOutput(w)
 	return nil
 }
 
