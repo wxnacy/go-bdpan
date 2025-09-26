@@ -123,7 +123,41 @@ func PreCreateFile(accessToken string, req *PreCreateFileReq) (*PreCreateFileRes
 		Isdir(req.Isdir).
 		Size(req.Size).
 		Autoinit(req.Autoinit).
+		Rtype(req.Rtype).
 		BlockList(req.GetBlockListString()).
 		Execute()
 	return ToInterface[PreCreateFileRes](r)
+}
+
+// 分片上传
+// https://pan.baidu.com/union/doc/nksg0s9vi
+// 分片上传，这里是实际的文件内容传送部分。一般多为大于4MB的文件，需将文件以4MB为单位切分，对切分后得到的n个分片一一调用该接口进行传送。
+func UploadFilePart(accessToken string, req *UploadFilePartReq) (*UploadFilePartRes, error) {
+	_, r, _ := GetClient().
+		FileuploadApi.Pcssuperfile2(context.Background()).
+		AccessToken(accessToken).
+		Path(req.Path).
+		Uploadid(req.Uploadid).
+		Partseq(fmt.Sprintf("%d", req.Partseq)).
+		Type_(req.Type).
+		File(req.File).
+		Execute()
+	return ToInterface[UploadFilePartRes](r)
+}
+
+// 创建文件
+// https://pan.baidu.com/union/doc/rksg0sa17
+// 将多个文件分片合并成一个文件，生成文件基本信息，完成文件的上传最后一步。
+func CreateFile(accessToken string, req *CreateFileReq) (*CreateFileRes, error) {
+	_, r, _ := GetClient().
+		FileuploadApi.Xpanfilecreate(context.Background()).
+		AccessToken(accessToken).
+		Path(req.Path).
+		Isdir(req.Isdir).
+		Size(req.Size).
+		Rtype(req.Rtype).
+		Uploadid(req.Uploadid).
+		BlockList(req.GetBlockListString()).
+		Execute()
+	return ToInterface[CreateFileRes](r)
 }

@@ -3,6 +3,7 @@ package bdpan
 import (
 	"encoding/json"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -124,9 +125,11 @@ type SearchFileRes struct {
 	List    []*FileInfo `json:"list"`
 }
 
-type Opera string
-type Ondup string
-type Async int32
+type (
+	Opera string
+	Ondup string
+	Async int32
+)
 
 const (
 	OndupFail      Ondup = "fail"
@@ -288,7 +291,7 @@ func (f FileInfo) GetFileTypeEmoji() string {
 			// 🚀
 			return "\U0001f680"
 		case 6:
-			var ext = filepath.Ext(f.Path)
+			ext := filepath.Ext(f.Path)
 			switch ext {
 			case ".zip":
 				return ""
@@ -341,10 +344,10 @@ func (f FileInfo) GetCategory() string {
 // PreCreateFileReq 预上传请求参数
 func NewPreCreateFileReq(path string, size int32, blockList []string) *PreCreateFileReq {
 	return &PreCreateFileReq{
-		Path:     path,
-		Size:     size,
-		Isdir:    0,
-		Autoinit: 1,
+		Path:      path,
+		Size:      size,
+		Isdir:     0,
+		Autoinit:  1,
 		BlockList: blockList,
 	}
 }
@@ -420,8 +423,7 @@ func (r *PreCreateFileReq) GetBlockListString() string {
 
 // PreCreateFileRes 预上传响应参数
 type PreCreateFileRes struct {
-	// 错误码
-	Errno int32 `json:"errno,omitempty"`
+	ErrorRes
 	// 文件的绝对路径
 	Path string `json:"path,omitempty"`
 	// 上传唯一ID标识此上传任务
@@ -434,4 +436,118 @@ type PreCreateFileRes struct {
 	RequestId int64 `json:"request_id,omitempty"`
 }
 
-// ... existing code ...
+// UploadFilePartReq 分片上传请求参数
+func NewUploadFilePartReq(path string, uploadid string, partseq int) *UploadFilePartReq {
+	return &UploadFilePartReq{
+		Path:     path,
+		Uploadid: uploadid,
+		Partseq:  partseq,
+		Type:     "tmpfile",
+	}
+}
+
+// UploadFilePartReq 分片上传请求参数
+// https://pan.baidu.com/union/doc/nksg0s9vi
+// 分片上传，这里是实际的文件内容传送部分。一般多为大于4MB的文件，需将文件以4MB为单位切分，对切分后得到的n个分片一一调用该接口进行传送。
+type UploadFilePartReq struct {
+	// 上传后使用的文件绝对路径，需要urlencode，需要与上一个阶段预上传precreate接口中的path保持一致
+	Path string
+	// 上一个阶段预上传precreate接口下发的uploadid
+	Uploadid string
+	// 文件分片的位置序号，从0开始，参考上一个阶段预上传precreate接口返回的block_list
+	Partseq int
+	// 固定值 tmpfile
+	Type string
+	// 要进行传送的本地文件分片
+	File *os.File
+}
+
+// UploadFilePartRes 分片上传响应参数
+type UploadFilePartRes struct {
+	ErrorRes
+	// 文件切片云端md5
+	Md5 string `json:"md5,omitempty"`
+}
+
+// CreateFileReq 创建文件请求参数
+func NewCreateFileReq(path string, size int32, isdir int32, uploadid string, blockList []string) *CreateFileReq {
+	return &CreateFileReq{
+		Path:      path,
+		Size:      size,
+		Isdir:     isdir,
+		Uploadid:  uploadid,
+		BlockList: blockList,
+	}
+}
+
+// CreateFileReq 创建文件请求参数
+// https://pan.baidu.com/union/doc/rksg0sa17
+// 将多个文件分片合并成一个文件，生成文件基本信息，完成文件的上传最后一步。
+type CreateFileReq struct {
+	// 上传后使用的文件绝对路径，需要urlencode，需要与预上传precreate接口中的path保持一致
+	Path string
+	// 文件或目录的大小，必须要和文件真实大小保持一致，需要与预上传precreate接口中的size保持一致
+	Size int32
+	// 是否目录，0 文件、1 目录，需要与预上传precreate接口中的isdir保持一致
+	Isdir int32
+	// 预上传precreate接口下发的uploadid
+	Uploadid string
+	// 文件各分片md5数组的json串需要与预上传precreate接口中的block_list保持一致，同时对应分片上传superfile2接口返回的md5，且要按照序号顺序排列
+	BlockList []string
+	// 文件命名策略，默认0
+	// 0 为不重命名，返回冲突
+	// 1 为只要path冲突即重命名
+	// 2 为path冲突且block_list不同才重命名
+	// 3 为覆盖，需要与预上传precreate接口中的rtype保持一致
+	Rtype int32
+	// 客户端创建时间(精确到秒)，默认为当前时间戳
+	LocalCTime int64
+	// 客户端修改时间(精确到秒)，默认为当前时间戳
+	LocalMTime int64
+}
+
+func (r *CreateFileReq) SetRtype(rtype int32) *CreateFileReq {
+	r.Rtype = rtype
+	return r
+}
+
+func (r *CreateFileReq) SetLocalCTime(localCTime int64) *CreateFileReq {
+	r.LocalCTime = localCTime
+	return r
+}
+
+func (r *CreateFileReq) SetLocalMTime(localMTime int64) *CreateFileReq {
+	r.LocalMTime = localMTime
+	return r
+}
+
+// GetBlockListString 返回block_list的json字符串
+func (r *CreateFileReq) GetBlockListString() string {
+	bytesData, _ := json.Marshal(r.BlockList)
+	return string(bytesData)
+}
+
+// CreateFileRes 创建文件响应参数
+type CreateFileRes struct {
+	ErrorRes
+	// 文件在云端的唯一标识ID
+	FsId uint64 `json:"fs_id,omitempty"`
+	// 文件的MD5，只有提交文件时才返回，提交目录时没有该值
+	Md5 string `json:"md5,omitempty"`
+	// 文件名
+	ServerFilename string `json:"server_filename,omitempty"`
+	// 分类类型, 1 视频 2 音频 3 图片 4 文档 5 应用 6 其他 7 种子
+	Category int32 `json:"category,omitempty"`
+	// 上传后使用的文件绝对路径
+	Path string `json:"path,omitempty"`
+	// 文件大小，单位B
+	Size uint64 `json:"size,omitempty"`
+	// 文件创建时间
+	Ctime uint64 `json:"ctime,omitempty"`
+	// 文件修改时间
+	Mtime uint64 `json:"mtime,omitempty"`
+	// 是否目录，0 文件、1 目录
+	Isdir int32 `json:"isdir,omitempty"`
+	// 请求ID
+	RequestId int64 `json:"request_id,omitempty"`
+}
