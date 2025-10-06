@@ -125,6 +125,7 @@ func PreCreateFile(accessToken string, req *PreCreateFileReq) (*PreCreateFileRes
 		Autoinit(req.Autoinit).
 		Rtype(req.Rtype).
 		BlockList(req.GetBlockListString()).
+		ContentMD5(req.ContentMD5).
 		Execute()
 	return ToInterface[PreCreateFileRes](r)
 }

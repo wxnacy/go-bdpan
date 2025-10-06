@@ -10,6 +10,7 @@ import (
 	"os"
 
 	"github.com/wxnacy/go-bdpan"
+	"github.com/wxnacy/go-tools"
 )
 
 const (
@@ -65,6 +66,11 @@ func uploadFile(accessToken, localFilePath, remoteFilePath string) error {
 
 	// 3. 计算文件大小
 	fileSize := fileInfo.Size()
+	fileMD5, err := tools.Md5File(localFilePath)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("文件md5: %s\n", fileMD5)
 
 	// 4. 计算文件的MD5分块列表
 	blockList, err := calculateBlockList(file, fileSize)
@@ -74,6 +80,7 @@ func uploadFile(accessToken, localFilePath, remoteFilePath string) error {
 
 	// 5. 预上传
 	preCreateReq := bdpan.NewPreCreateFileReq(remoteFilePath, int32(fileSize), blockList)
+	preCreateReq.ContentMD5 = fileMD5
 	preCreateRes, err := bdpan.PreCreateFile(accessToken, preCreateReq)
 	if err != nil {
 		return fmt.Errorf("预上传失败: %w", err)
@@ -179,12 +186,14 @@ func uploadFile(accessToken, localFilePath, remoteFilePath string) error {
 	}
 
 	fmt.Printf("文件创建成功，fs_id: %d\n", createFileRes.FsId)
+	fmt.Printf("文件创建成功，md5: %s\n", createFileRes.Md5)
 
 	file_res, err := bdpan.GetFileInfo(accessToken, bdpan.NewGetFileInfoReq(createFileRes.FsId))
 	if err != nil {
 		return fmt.Errorf("获取文件失败: %w", err)
 	}
 	fmt.Printf("文件名称: %s\n", file_res.GetFilename())
+	fmt.Printf("文件md5: %s\n", file_res.MD5)
 	return nil
 }
 
