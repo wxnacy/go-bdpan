@@ -56,6 +56,33 @@ type GetFileListRes struct {
 	List     []*FileInfo `json:"list"`
 }
 
+func NewGetFileListAllReq(path string) *GetFileListAllReq {
+	return &GetFileListAllReq{
+		Path:      path,
+		Recursion: 1, // Recursive
+		Limit:     1000,
+		Start:     0,
+	}
+}
+
+type GetFileListAllReq struct {
+	Path      string
+	Recursion int
+	Web       int
+	Start     uint64
+	Limit     uint32
+	Order     string
+	Desc      int
+}
+
+type GetFileListAllRes struct {
+	List      []*FileInfo `json:"list"`
+	RequestID string      `json:"request_id"`
+	HasMore   int         `json:"has_more"`
+	Cursor    uint64      `json:"cursor"`
+	ErrorRes
+}
+
 func NewGetFileInfoReq(fsid uint64) *GetFileInfoReq {
 	return &GetFileInfoReq{
 		FSID: fsid,
@@ -88,8 +115,8 @@ type BatchGetFileInfoReq struct {
 	FSIds []uint64
 }
 
-func (r *BatchGetFileInfoReq) AppendFSID(fsid uint64) *BatchGetFileInfoReq {
-	r.FSIds = append(r.FSIds, fsid)
+func (r *BatchGetFileInfoReq) AppendFSID(fsid ...uint64) *BatchGetFileInfoReq {
+	r.FSIds = append(r.FSIds, fsid...)
 	return r
 }
 
@@ -531,7 +558,7 @@ func (r *CreateFileReq) GetBlockListString() string {
 type CreateFileRes struct {
 	ErrorRes
 	// 文件在云端的唯一标识ID
-	FsId uint64 `json:"fs_id,omitempty"`
+	FSId uint64 `json:"fs_id,omitempty"`
 	// 文件的MD5，只有提交文件时才返回，提交目录时没有该值
 	Md5 string `json:"md5,omitempty"`
 	// 文件名

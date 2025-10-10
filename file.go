@@ -9,6 +9,24 @@ import (
 	"strconv"
 )
 
+// GetFileListAll 递归获取文件列表
+// https://pan.baidu.com/union/doc/Zksg0sb73
+func GetFileListAll(accessToken string, req *GetFileListAllReq) (*GetFileListAllRes, error) {
+	_, r, err := GetClient().
+		MultimediafileApi.Xpanfilelistall(context.Background()).
+		AccessToken(accessToken).
+		Path(req.Path).
+		Recursion(int32(req.Recursion)).
+		Web(strconv.Itoa(req.Web)).
+		Start(int32(req.Start)).
+		Limit(int32(req.Limit)).
+		Order(req.Order).
+		Desc(int32(req.Desc)).
+		Execute()
+
+	return ToInterface[GetFileListAllRes](r, err)
+}
+
 // 获取文件列表
 // https://pan.baidu.com/union/doc/nksg0sat9
 func GetFileList(accessToken string, req *GetFileListReq) (*GetFileListRes, error) {

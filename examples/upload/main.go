@@ -185,10 +185,10 @@ func uploadFile(accessToken, localFilePath, remoteFilePath string) error {
 		return fmt.Errorf("创建文件失败，错误码: %d", createFileRes.Errno)
 	}
 
-	fmt.Printf("文件创建成功，fs_id: %d\n", createFileRes.FsId)
+	fmt.Printf("文件创建成功，fs_id: %d\n", createFileRes.FSId)
 	fmt.Printf("文件创建成功，md5: %s\n", createFileRes.Md5)
 
-	file_res, err := bdpan.GetFileInfo(accessToken, bdpan.NewGetFileInfoReq(createFileRes.FsId))
+	file_res, err := bdpan.GetFileInfo(accessToken, bdpan.NewGetFileInfoReq(createFileRes.FSId))
 	if err != nil {
 		return fmt.Errorf("获取文件失败: %w", err)
 	}
