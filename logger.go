@@ -25,7 +25,12 @@ func GetLogger() *logrus.Logger {
 func initLogger() *logrus.Logger {
 	// 初始化 logrus.Logger 的具体实现
 	logger := logrus.New()
-	// logger.SetLevel(logrus.InfoLevel) // 设置日志级别
+	envLevel := os.Getenv("BDPAN_LOGGER_LEVEL")
+	level, err := logrus.ParseLevel(envLevel)
+	if err == nil {
+		logger.SetLevel(level)
+	}
+
 	logger.SetFormatter(&LogFormatter{
 		TextFormatter: &logrus.TextFormatter{
 			ForceColors:     true,
