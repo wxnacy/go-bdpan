@@ -8,7 +8,8 @@ import (
 
 type ErrorRes struct {
 	// 错误码
-	Errno int32 `json:"errno,omitempty"`
+	Errno  int32  `json:"errno,omitempty"`
+	Errmsg string `json:"errmsg,omitempty"`
 }
 
 func (e ErrorRes) IsError() bool {
@@ -19,17 +20,7 @@ func (e ErrorRes) Error() string {
 	return GetApiErrByErrno(e.Errno).Error()
 }
 
-type ApiError struct {
-	ErrorRes
-	StatusCode       int    `json:"status_code"`
-	ErrMsg           string `json:"errmsg"`
-	Erro             string `json:"error"`
-	ErrorDescription string `json:"error_description"`
-	ErrorCode        int    `json:"error_code"`
-	ErrorMsg         string `json:"error_msg"`
-}
-
-func ToInterface[T any](r *http.Response) (*T, error) {
+func ToInterface[T any](r *http.Response, args ...any) (*T, error) {
 	var i T
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
@@ -42,7 +33,7 @@ func ToInterface[T any](r *http.Response) (*T, error) {
 			return nil, err
 		}
 	} else {
-		var apiErr ApiError
+		var apiErr ErrorRes
 		if err := json.Unmarshal(bodyBytes, &apiErr); err != nil {
 			return nil, err
 		}
