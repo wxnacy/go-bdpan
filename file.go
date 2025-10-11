@@ -105,6 +105,15 @@ func MoveFiles(accessToken string, dir string, paths ...string) (*ManageFileRes,
 	return ManageFile(accessToken, req)
 }
 
+// 重命名
+// RenameFiles(token, NewFileManager("/apps/bdpan/test.go", "", "new.go"))
+func RenameFiles(accessToken string, files ...*FileManager) (*ManageFileRes, error) {
+	req := NewManageFileReq(OperaRename, files)
+	return ManageFile(accessToken, req)
+}
+
+// 管理文件
+// https://pan.baidu.com/union/doc/mksg0s9l4
 func ManageFile(accessToken string, req *ManageFileReq) (*ManageFileRes, error) {
 	var r *http.Response
 	switch req.Opera {
@@ -121,6 +130,15 @@ func ManageFile(accessToken string, req *ManageFileReq) (*ManageFileRes, error) 
 		r, _ = GetClient().
 			FilemanagerApi.
 			Filemanagermove(context.Background()).
+			AccessToken(accessToken).
+			Async(int32(req.Async)).
+			Ondup(string(req.Ondup)).
+			Filelist(req.GetFilelistString()).
+			Execute()
+	case OperaRename:
+		r, _ = GetClient().
+			FilemanagerApi.
+			Filemanagerrename(context.Background()).
 			AccessToken(accessToken).
 			Async(int32(req.Async)).
 			Ondup(string(req.Ondup)).

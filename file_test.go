@@ -73,7 +73,7 @@ func TestDeleteFile(t *testing.T) {
 			fmt.Printf("Delete path: %s\n", f.Path)
 			res, err := DeleteFiles(accessToken, f.Path)
 			assert.NoError(t, err)
-			info := res.Info[0]
+			info := res.Infos[0]
 			assert.Equal(t, info.Errno, 0)
 			assert.Equal(t, info.Path, f.Path)
 			return

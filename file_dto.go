@@ -219,12 +219,14 @@ func (r ManageFileReq) GetFilelistString() string {
 }
 
 type FileManagerInfo struct {
-	Errno int    `json:"errno,omitempty"`
-	Path  string `json:"path,omitempty"`
+	ErrorRes
+	Path   string `json:"path,omitempty"`
+	ToPath string `json:"to_path,omitempty"`
 }
 
 type ManageFileRes struct {
-	Info      []FileManagerInfo `json:"info,omitempty"`
+	ErrorRes
+	Infos     []FileManagerInfo `json:"info,omitempty"`
 	RequestId int64             `json:"request_id,omitempty"`
 	Taskid    int64             `json:"taskid,omitempty"`
 }
