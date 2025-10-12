@@ -340,12 +340,13 @@ func (f FileInfo) GetFileType() string {
 	if f.IsDir() {
 		return "文件夹"
 	} else {
-		switch f.GetCategory() {
-		case "其他":
-			return "文件"
-		default:
-			return f.GetCategory()
-		}
+		return f.GetCategory()
+		// switch f.GetCategory() {
+		// case "其他":
+		// return "文件"
+		// default:
+		// return f.GetCategory()
+		// }
 	}
 }
 
