@@ -103,7 +103,7 @@ type GetFileInfoRes struct {
 
 func NewBatchGetFileListReq(fsid uint64) *BatchGetFileInfoReq {
 	return &BatchGetFileInfoReq{
-		FSIds: []uint64{fsid},
+		FSIDs: []uint64{fsid},
 		// 是否需要下载地址，0为否，1为是，默认为0。获取到dlink后，参考下载文档进行下载操作
 		// 下载文档: https://pan.baidu.com/union/doc/pkuo3snyp
 		Dlink: 1,
@@ -112,16 +112,16 @@ func NewBatchGetFileListReq(fsid uint64) *BatchGetFileInfoReq {
 
 type BatchGetFileInfoReq struct {
 	Dlink int
-	FSIds []uint64
+	FSIDs []uint64
 }
 
 func (r *BatchGetFileInfoReq) AppendFSID(fsid ...uint64) *BatchGetFileInfoReq {
-	r.FSIds = append(r.FSIds, fsid...)
+	r.FSIDs = append(r.FSIDs, fsid...)
 	return r
 }
 
 func (r *BatchGetFileInfoReq) GetFSIDString() string {
-	bytesData, _ := json.Marshal(r.FSIds)
+	bytesData, _ := json.Marshal(r.FSIDs)
 	return string(bytesData)
 }
 
@@ -561,7 +561,7 @@ func (r *CreateFileReq) GetBlockListString() string {
 type CreateFileRes struct {
 	ErrorRes
 	// 文件在云端的唯一标识ID
-	FSId uint64 `json:"fs_id,omitempty"`
+	FSID uint64 `json:"fs_id,omitempty"`
 	// 文件的MD5，只有提交文件时才返回，提交目录时没有该值
 	Md5 string `json:"md5,omitempty"`
 	// 文件名
