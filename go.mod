@@ -1,11 +1,11 @@
 module github.com/wxnacy/go-bdpan
 
-go 1.23.4
+go 1.24.0
 
 require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/stretchr/testify v1.10.0
-	github.com/wxnacy/go-tools v0.0.11
+	github.com/wxnacy/go-tools v0.0.14
 )
 
 require (
