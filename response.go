@@ -8,15 +8,20 @@ import (
 
 type ErrorRes struct {
 	// 错误码
-	Errno  int32  `json:"errno,omitempty"`
-	Errmsg string `json:"errmsg,omitempty"`
+	Errno     int32  `json:"errno,omitempty"`
+	Errmsg    string `json:"errmsg,omitempty"`
+	ErrorMsg  string `json:"error,omitempty"`
+	ErrorDesc string `json:"error_description,omitempty"`
 }
 
 func (e ErrorRes) IsError() bool {
-	return e.Errno != 0
+	return e.Errno != 0 || e.ErrorMsg != ""
 }
 
 func (e ErrorRes) Error() string {
+	if e.ErrorDesc != "" {
+		return e.ErrorDesc
+	}
 	return GetApiErrByErrno(e.Errno).Error()
 }
 
