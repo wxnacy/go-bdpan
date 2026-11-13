@@ -111,8 +111,9 @@ func NewBatchGetFileListReq(fsid uint64) *BatchGetFileInfoReq {
 }
 
 type BatchGetFileInfoReq struct {
-	Dlink int
-	FSIDs []uint64
+	Dlink  int
+	Blocks int
+	FSIDs  []uint64
 }
 
 func (r *BatchGetFileInfoReq) AppendFSID(fsid ...uint64) *BatchGetFileInfoReq {
@@ -241,6 +242,7 @@ type FileInfo struct {
 	Category       int               `json:"category"`
 	Dlink          string            `json:"dlink"`
 	MD5            string            `json:"md5"`
+	BlockList      []string          `json:"block_list,omitempty"`
 	Thumbs         map[string]string `json:"thumbs"`
 	ServerCTime    int64             `json:"server_ctime"`
 	ServerMTime    int64             `json:"server_mtime"`

@@ -18,6 +18,9 @@ func init() {
 }
 
 func TestGetFileList(t *testing.T) {
+	if accessToken == "" {
+		t.Skip("BDPAN_ACCESS_TOKEN is not set")
+	}
 	req := NewGetFileListReq()
 	res, err := GetFileList(accessToken, req)
 	assert.NoError(t, err)
@@ -26,6 +29,9 @@ func TestGetFileList(t *testing.T) {
 }
 
 func TestGetFileInfo(t *testing.T) {
+	if accessToken == "" {
+		t.Skip("BDPAN_ACCESS_TOKEN is not set")
+	}
 	listRes, err := GetFileList(accessToken, NewGetFileListReq())
 	reqInfo := listRes.List[0]
 	fsid := reqInfo.FSID
@@ -42,6 +48,9 @@ func TestGetFileInfo(t *testing.T) {
 }
 
 func TestBatchGetFileInfo(t *testing.T) {
+	if accessToken == "" {
+		t.Skip("BDPAN_ACCESS_TOKEN is not set")
+	}
 	listRes, err := GetFileList(accessToken, NewGetFileListReq())
 	reqInfo := listRes.List[0]
 	fsid := reqInfo.FSID
@@ -65,6 +74,9 @@ func TestBatchGetFileInfo(t *testing.T) {
 // }
 
 func TestDeleteFile(t *testing.T) {
+	if accessToken == "" {
+		t.Skip("BDPAN_ACCESS_TOKEN is not set")
+	}
 	listRes, err := GetFileList(accessToken, NewGetFileListReq().SetDir(testDir).SetLimit(100))
 	assert.NoError(t, err)
 	for _, f := range listRes.List {

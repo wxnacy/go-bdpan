@@ -4,7 +4,9 @@ package bdpan
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"path/filepath"
 	"strconv"
 )
@@ -62,12 +64,18 @@ func GetFileInfo(accessToken string, req *GetFileInfoReq) (*GetFileInfoRes, erro
 
 // 批量获取文件详情
 func BatchGetFileInfo(accessToken string, req *BatchGetFileInfoReq) (*BatchGetFileInfoRes, error) {
-	_, r, _ := GetClient().
-		MultimediafileApi.Xpanmultimediafilemetas(
-		context.Background()).AccessToken(accessToken).
+	api := GetClient().
+		MultimediafileApi.Xpanmultimediafilemetas(context.Background()).
+		AccessToken(accessToken).
 		Dlink(req.GetDlink()).
-		Fsids(req.GetFSIDString()).
-		Execute()
+		Fsids(req.GetFSIDString())
+	if req.Blocks > 0 {
+		api = api.Blocks(int32(req.Blocks))
+	}
+	_, r, err := api.Execute()
+	if err != nil {
+		return nil, ToAPIError(r, err)
+	}
 	return ToInterface[BatchGetFileInfoRes](r)
 }
 
@@ -152,8 +160,13 @@ func ManageFile(accessToken string, req *ManageFileReq) (*ManageFileRes, error) 
 // https://pan.baidu.com/union/doc/3ksg0s9r7
 // 预上传是通知网盘云端新建一个上传任务，网盘云端返回唯一ID uploadid 来标识此上传任务。
 func PreCreateFile(accessToken string, req *PreCreateFileReq) (*PreCreateFileRes, error) {
-	_, r, _ := GetClient().
-		FileuploadApi.Xpanfileprecreate(context.Background()).
+	return PreCreateFileWithContext(context.Background(), accessToken, req)
+}
+
+// PreCreateFileWithContext 是 PreCreateFile 的 context 版本，ctx 取消时请求会被中断。
+func PreCreateFileWithContext(ctx context.Context, accessToken string, req *PreCreateFileReq) (*PreCreateFileRes, error) {
+	_, r, err := GetClient().
+		FileuploadApi.Xpanfileprecreate(ctx).
 		AccessToken(accessToken).
 		Path(req.Path).
 		Isdir(req.Isdir).
@@ -162,7 +175,14 @@ func PreCreateFile(accessToken string, req *PreCreateFileReq) (*PreCreateFileRes
 		Rtype(req.Rtype).
 		BlockList(req.GetBlockListString()).
 		ContentMD5(req.ContentMD5).
+		Uploadid(req.Uploadid).
+		SliceMD5(req.SliceMD5).
+		LocalCTime(req.LocalCTime).
+		LocalMTime(req.LocalMTime).
 		Execute()
+	if err != nil {
+		return nil, ToAPIError(r, err)
+	}
 	return ToInterface[PreCreateFileRes](r)
 }
 
@@ -170,8 +190,13 @@ func PreCreateFile(accessToken string, req *PreCreateFileReq) (*PreCreateFileRes
 // https://pan.baidu.com/union/doc/nksg0s9vi
 // 分片上传，这里是实际的文件内容传送部分。一般多为大于4MB的文件，需将文件以4MB为单位切分，对切分后得到的n个分片一一调用该接口进行传送。
 func UploadFilePart(accessToken string, req *UploadFilePartReq) (*UploadFilePartRes, error) {
-	_, r, _ := GetClient().
-		FileuploadApi.Pcssuperfile2(context.Background()).
+	return UploadFilePartWithContext(context.Background(), accessToken, req)
+}
+
+// UploadFilePartWithContext 是 UploadFilePart 的 context 版本，ctx 取消时请求会被中断。
+func UploadFilePartWithContext(ctx context.Context, accessToken string, req *UploadFilePartReq) (*UploadFilePartRes, error) {
+	_, r, err := GetClient().
+		FileuploadApi.Pcssuperfile2(ctx).
 		AccessToken(accessToken).
 		Path(req.Path).
 		Uploadid(req.Uploadid).
@@ -179,15 +204,64 @@ func UploadFilePart(accessToken string, req *UploadFilePartReq) (*UploadFilePart
 		Type_(req.Type).
 		File(req.File).
 		Execute()
+	if err != nil {
+		return nil, ToAPIError(r, err)
+	}
 	return ToInterface[UploadFilePartRes](r)
+}
+
+// UploadFilePartWithReader 上传分片，内容从 reader 流式读取，不整片读入内存。
+//
+// 与 UploadFilePart 的区别是调用方可以直接传 io.SectionReader 等按需读取的
+// 视图，不需要先落临时文件；reader 的生命周期由调用方管理。
+func UploadFilePartWithReader(
+	ctx context.Context,
+	accessToken string,
+	req *UploadFilePartReq,
+	reader io.Reader,
+) (*UploadFilePartRes, error) {
+	part := GetClient().
+		FileuploadApi.Pcssuperfile2(ctx).
+		AccessToken(accessToken).
+		Path(req.Path).
+		Uploadid(req.Uploadid).
+		Partseq(fmt.Sprintf("%d", req.Partseq)).
+		Type_(req.Type).
+		FileReader(reader)
+	if size, ok := readerLength(reader); ok {
+		part = part.FileSize(size)
+	}
+	_, r, err := part.Execute()
+	if err != nil {
+		return nil, ToAPIError(r, err)
+	}
+	return ToInterface[UploadFilePartRes](r)
+}
+
+// readerLength 推断 reader 的总字节数，未知时返回 false。
+func readerLength(reader io.Reader) (int64, bool) {
+	if sizer, ok := reader.(interface{ Size() int64 }); ok {
+		return sizer.Size(), true
+	}
+	if file, ok := reader.(*os.File); ok {
+		if st, err := file.Stat(); err == nil {
+			return st.Size(), true
+		}
+	}
+	return 0, false
 }
 
 // 创建文件
 // https://pan.baidu.com/union/doc/rksg0sa17
 // 将多个文件分片合并成一个文件，生成文件基本信息，完成文件的上传最后一步。
 func CreateFile(accessToken string, req *CreateFileReq) (*CreateFileRes, error) {
-	_, r, _ := GetClient().
-		FileuploadApi.Xpanfilecreate(context.Background()).
+	return CreateFileWithContext(context.Background(), accessToken, req)
+}
+
+// CreateFileWithContext 是 CreateFile 的 context 版本，ctx 取消时请求会被中断。
+func CreateFileWithContext(ctx context.Context, accessToken string, req *CreateFileReq) (*CreateFileRes, error) {
+	_, r, err := GetClient().
+		FileuploadApi.Xpanfilecreate(ctx).
 		AccessToken(accessToken).
 		Path(req.Path).
 		Isdir(req.Isdir).
@@ -196,5 +270,8 @@ func CreateFile(accessToken string, req *CreateFileReq) (*CreateFileRes, error) 
 		Uploadid(req.Uploadid).
 		BlockList(req.GetBlockListString()).
 		Execute()
+	if err != nil {
+		return nil, ToAPIError(r, err)
+	}
 	return ToInterface[CreateFileRes](r)
 }

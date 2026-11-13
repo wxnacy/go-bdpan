@@ -204,8 +204,104 @@ func (c *APIClient) GetConfig() *Configuration {
 
 type formFile struct {
 	fileBytes    []byte
+	fileReader   io.Reader
+	fileSize     int64
 	fileName     string
 	formFileName string
+}
+
+type countingWriter struct {
+	n int64
+}
+
+func (w *countingWriter) Write(p []byte) (int, error) {
+	w.n += int64(len(p))
+	return len(p), nil
+}
+
+// multipartFormLength 计算 multipart body 的精确长度，用于流式上传时设置 Content-Length。
+// 有任一文件大小未知时返回 false，由调用方退化为 chunked。
+func multipartFormLength(formParams url.Values, formFiles []formFile) (int64, bool) {
+	var cw countingWriter
+	w := multipart.NewWriter(&cw)
+
+	for k, v := range formParams {
+		for _, iv := range v {
+			if strings.HasPrefix(k, "@") {
+				return 0, false
+			}
+			if err := w.WriteField(k, iv); err != nil {
+				return 0, false
+			}
+		}
+	}
+
+	var fileSize int64
+	for _, file := range formFiles {
+		if file.fileReader == nil && len(file.fileBytes) == 0 {
+			continue
+		}
+		if file.fileName == "" {
+			continue
+		}
+		w.Boundary()
+		if _, err := w.CreateFormFile(file.formFileName, filepath.Base(file.fileName)); err != nil {
+			return 0, false
+		}
+		if file.fileReader != nil {
+			if file.fileSize < 0 {
+				return 0, false
+			}
+			fileSize += file.fileSize
+			continue
+		}
+		fileSize += int64(len(file.fileBytes))
+	}
+	if err := w.Close(); err != nil {
+		return 0, false
+	}
+	return cw.n + fileSize, true
+}
+
+// writeMultipartForm 把表单字段与文件写入 multipart writer。
+// 文件优先使用 fileReader 流式写入，避免整片读入内存。
+func writeMultipartForm(w *multipart.Writer, formParams url.Values, formFiles []formFile) error {
+	for k, v := range formParams {
+		for _, iv := range v {
+			if strings.HasPrefix(k, "@") { // file
+				if err := addFile(w, k[1:], iv); err != nil {
+					return err
+				}
+				continue
+			}
+			if err := w.WriteField(k, iv); err != nil {
+				return err
+			}
+		}
+	}
+	for _, file := range formFiles {
+		if file.fileReader == nil && len(file.fileBytes) == 0 {
+			continue
+		}
+		if file.fileName == "" {
+			continue
+		}
+		w.Boundary()
+		part, err := w.CreateFormFile(file.formFileName, filepath.Base(file.fileName))
+		if err != nil {
+			return err
+		}
+		if file.fileReader != nil {
+			if _, err := io.Copy(part, file.fileReader); err != nil {
+				return err
+			}
+			continue
+		}
+		if _, err := part.Write(file.fileBytes); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // prepareRequest build the request
@@ -219,6 +315,8 @@ func (c *APIClient) prepareRequest(
 	formFiles []formFile) (localVarRequest *http.Request, err error) {
 
 	var body *bytes.Buffer
+	var streamBody io.Reader
+	var streamLength int64 = -1
 
 	// Detect postBody type and post.
 	if postBody != nil {
@@ -239,41 +337,46 @@ func (c *APIClient) prepareRequest(
 		if body != nil {
 			return nil, errors.New("Cannot specify postBody and multipart form at the same time.")
 		}
-		body = &bytes.Buffer{}
-		w := multipart.NewWriter(body)
 
-		for k, v := range formParams {
-			for _, iv := range v {
-				if strings.HasPrefix(k, "@") { // file
-					err = addFile(w, k[1:], iv)
-					if err != nil {
-						return nil, err
-					}
-				} else { // form value
-					w.WriteField(k, iv)
-				}
-			}
-		}
-		for _, formFile := range formFiles {
-			if len(formFile.fileBytes) > 0 && formFile.fileName != "" {
-				w.Boundary()
-				part, err := w.CreateFormFile(formFile.formFileName, filepath.Base(formFile.fileName))
-				if err != nil {
-					return nil, err
-				}
-				_, err = part.Write(formFile.fileBytes)
-				if err != nil {
-					return nil, err
-				}
+		hasReader := false
+		for _, file := range formFiles {
+			if file.fileReader != nil {
+				hasReader = true
+				break
 			}
 		}
 
-		// Set the Boundary in the Content-Type
-		headerParams["Content-Type"] = w.FormDataContentType()
+		if hasReader {
+			// 流式写入：用 io.Pipe 边写 multipart 边发送，避免把整个分片读入内存。
+			// 长度未知时不设置 Content-Length，由 HTTP 客户端使用 chunked 编码。
+			pr, pw := io.Pipe()
+			w := multipart.NewWriter(pw)
+			headerParams["Content-Type"] = w.FormDataContentType()
+			if length, ok := multipartFormLength(formParams, formFiles); ok {
+				streamLength = length
+			}
+			go func() {
+				err := writeMultipartForm(w, formParams, formFiles)
+				if closeErr := w.Close(); err == nil {
+					err = closeErr
+				}
+				_ = pw.CloseWithError(err)
+			}()
+			streamBody = pr
+		} else {
+			body = &bytes.Buffer{}
+			w := multipart.NewWriter(body)
+			if err := writeMultipartForm(w, formParams, formFiles); err != nil {
+				return nil, err
+			}
 
-		// Set Content-Length
-		headerParams["Content-Length"] = fmt.Sprintf("%d", body.Len())
-		w.Close()
+			// Set the Boundary in the Content-Type
+			headerParams["Content-Type"] = w.FormDataContentType()
+
+			w.Close()
+			// Close 会写入结尾 boundary，长度必须在 Close 之后取
+			headerParams["Content-Length"] = fmt.Sprintf("%d", body.Len())
+		}
 	}
 
 	if strings.HasPrefix(headerParams["Content-Type"], "application/x-www-form-urlencoded") && len(formParams) > 0 {
@@ -314,7 +417,13 @@ func (c *APIClient) prepareRequest(
 	url.RawQuery = query.Encode()
 
 	// Generate a new request
-	if body != nil {
+	if streamBody != nil {
+		localVarRequest, err = http.NewRequest(method, url.String(), streamBody)
+		if err == nil && streamLength >= 0 {
+			// 必须设置 Request.ContentLength，直接写 header 会被 Transport 按 chunked 覆盖
+			localVarRequest.ContentLength = streamLength
+		}
+	} else if body != nil {
 		localVarRequest, err = http.NewRequest(method, url.String(), body)
 	} else {
 		localVarRequest, err = http.NewRequest(method, url.String(), nil)

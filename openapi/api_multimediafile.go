@@ -27,16 +27,16 @@ var (
 type MultimediafileApiService service
 
 type ApiXpanfilelistallRequest struct {
-	ctx _context.Context
-	ApiService *MultimediafileApiService
+	ctx         _context.Context
+	ApiService  *MultimediafileApiService
 	accessToken *string
-	path *string
-	recursion *int32
-	web *string
-	start *int32
-	limit *int32
-	order *string
-	desc *int32
+	path        *string
+	recursion   *int32
+	web         *string
+	start       *int32
+	limit       *int32
+	order       *string
+	desc        *int32
 }
 
 func (r ApiXpanfilelistallRequest) AccessToken(accessToken string) ApiXpanfilelistallRequest {
@@ -81,24 +81,25 @@ Xpanfilelistall Method for Xpanfilelistall
 
 listall
 
- @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiXpanfilelistallRequest
+	@param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return ApiXpanfilelistallRequest
 */
 func (a *MultimediafileApiService) Xpanfilelistall(ctx _context.Context) ApiXpanfilelistallRequest {
 	return ApiXpanfilelistallRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 // Execute executes the request
-//  @return string
+//
+//	@return string
 func (a *MultimediafileApiService) XpanfilelistallExecute(r ApiXpanfilelistallRequest) (string, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod   = _nethttp.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  string
+		localVarHTTPMethod  = _nethttp.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue string
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MultimediafileApiService.Xpanfilelistall")
@@ -194,15 +195,16 @@ func (a *MultimediafileApiService) XpanfilelistallExecute(r ApiXpanfilelistallRe
 }
 
 type ApiXpanmultimediafilemetasRequest struct {
-	ctx _context.Context
-	ApiService *MultimediafileApiService
+	ctx         _context.Context
+	ApiService  *MultimediafileApiService
 	accessToken *string
-	fsids *string
-	thumb *string
-	extra *string
-	dlink *string
-	path *string
-	needmedia *int32
+	fsids       *string
+	thumb       *string
+	extra       *string
+	dlink       *string
+	path        *string
+	needmedia   *int32
+	blocks      *int32
 }
 
 func (r ApiXpanmultimediafilemetasRequest) AccessToken(accessToken string) ApiXpanmultimediafilemetasRequest {
@@ -221,11 +223,13 @@ func (r ApiXpanmultimediafilemetasRequest) Extra(extra string) ApiXpanmultimedia
 	r.extra = &extra
 	return r
 }
+
 // 下载地址。下载接口需要用到dlink。
 func (r ApiXpanmultimediafilemetasRequest) Dlink(dlink string) ApiXpanmultimediafilemetasRequest {
 	r.dlink = &dlink
 	return r
 }
+
 // 查询共享目录或专属空间内文件时需要。共享目录格式： /uk-fsid（其中uk为共享目录创建者id， fsid对应共享目录的fsid）。专属空间格式：/_pcs_.appdata/xpan/。
 func (r ApiXpanmultimediafilemetasRequest) Path(path string) ApiXpanmultimediafilemetasRequest {
 	r.path = &path
@@ -233,6 +237,12 @@ func (r ApiXpanmultimediafilemetasRequest) Path(path string) ApiXpanmultimediafi
 }
 func (r ApiXpanmultimediafilemetasRequest) Needmedia(needmedia int32) ApiXpanmultimediafilemetasRequest {
 	r.needmedia = &needmedia
+	return r
+}
+
+// blocks 是否返回文件分片信息，0 否、1 是
+func (r ApiXpanmultimediafilemetasRequest) Blocks(blocks int32) ApiXpanmultimediafilemetasRequest {
+	r.blocks = &blocks
 	return r
 }
 
@@ -245,24 +255,25 @@ Xpanmultimediafilemetas Method for Xpanmultimediafilemetas
 
 multimedia filemetas
 
- @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
- @return ApiXpanmultimediafilemetasRequest
+	@param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+	@return ApiXpanmultimediafilemetasRequest
 */
 func (a *MultimediafileApiService) Xpanmultimediafilemetas(ctx _context.Context) ApiXpanmultimediafilemetasRequest {
 	return ApiXpanmultimediafilemetasRequest{
 		ApiService: a,
-		ctx: ctx,
+		ctx:        ctx,
 	}
 }
 
 // Execute executes the request
-//  @return string
+//
+//	@return string
 func (a *MultimediafileApiService) XpanmultimediafilemetasExecute(r ApiXpanmultimediafilemetasRequest) (string, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod   = _nethttp.MethodGet
-		localVarPostBody     interface{}
-		formFiles            []formFile
-		localVarReturnValue  string
+		localVarHTTPMethod  = _nethttp.MethodGet
+		localVarPostBody    interface{}
+		formFiles           []formFile
+		localVarReturnValue string
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "MultimediafileApiService.Xpanmultimediafilemetas")
@@ -298,6 +309,9 @@ func (a *MultimediafileApiService) XpanmultimediafilemetasExecute(r ApiXpanmulti
 	}
 	if r.needmedia != nil {
 		localVarQueryParams.Add("needmedia", parameterToString(*r.needmedia, ""))
+	}
+	if r.blocks != nil {
+		localVarQueryParams.Add("blocks", parameterToString(*r.blocks, ""))
 	}
 	// to determine the Content-Type header
 	localVarHTTPContentTypes := []string{}

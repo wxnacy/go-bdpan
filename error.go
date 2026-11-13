@@ -1,7 +1,10 @@
 package bdpan
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"net"
 )
 
 // https://pan.baidu.com/union/doc/okumlx17r
@@ -319,6 +322,62 @@ var (
 		Remark: "授权用户为普通用户时，单个分片大小固定为4MB，单文件总大小上限为4GB；授权用户为普通会员时，单个分片大小",
 	}
 )
+
+// IsRetryable 判断错误是否值得重试。
+//
+// 可重试：网络错误、超时、HTTP 5xx/408/429、限流与临时性服务端错误。
+// 不可重试：参数错误、鉴权失败、权限不足、配额/大小超限、文件不存在等。
+// context.Canceled 一律视为不可重试。
+func IsRetryable(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, context.Canceled) {
+		return false
+	}
+
+	var apiErr *ErrorRes
+	if errors.As(err, &apiErr) {
+		if isRetryableStatus(apiErr.StatusCode) {
+			return true
+		}
+		if apiErr.Errno != 0 {
+			return isRetryableErrno(apiErr.Errno)
+		}
+		return false
+	}
+
+	var legacyErr *ApiErr
+	if errors.As(err, &legacyErr) {
+		return isRetryableErrno(legacyErr.Errno)
+	}
+
+	if errors.Is(err, context.DeadlineExceeded) {
+		return true
+	}
+	var netErr net.Error
+	if errors.As(err, &netErr) {
+		return true
+	}
+	return false
+}
+
+func isRetryableStatus(statusCode int) bool {
+	switch statusCode {
+	case 408, 429, 500, 502, 503, 504:
+		return true
+	}
+	return false
+}
+
+func isRetryableErrno(errno int32) bool {
+	switch errno {
+	// -1 操作失败、1 未知错误、4/9013/9019/31034 限流、31341 转码中
+	case -1, 1, 4, 9013, 9019, 31034, 31341:
+		return true
+	}
+	return false
+}
 
 // 根据Errno获取对应的ApiErr实例
 func GetApiErrByErrno(errno int32) *ApiErr {

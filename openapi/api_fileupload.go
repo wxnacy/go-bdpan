@@ -13,6 +13,7 @@ package openapi
 import (
 	"bytes"
 	_context "context"
+	"io"
 	_ioutil "io/ioutil"
 	_nethttp "net/http"
 	_neturl "net/url"
@@ -36,6 +37,8 @@ type ApiPcssuperfile2Request struct {
 	uploadid    *string
 	type_       *string
 	file        **os.File
+	fileReader  io.Reader
+	fileSize    *int64
 }
 
 func (r ApiPcssuperfile2Request) AccessToken(accessToken string) ApiPcssuperfile2Request {
@@ -66,6 +69,18 @@ func (r ApiPcssuperfile2Request) Type_(type_ string) ApiPcssuperfile2Request {
 // 要进行传送的本地文件分片
 func (r ApiPcssuperfile2Request) File(file *os.File) ApiPcssuperfile2Request {
 	r.file = &file
+	return r
+}
+
+// FileReader 从 Reader 流式读取分片内容，避免整片读入内存
+func (r ApiPcssuperfile2Request) FileReader(reader io.Reader) ApiPcssuperfile2Request {
+	r.fileReader = reader
+	return r
+}
+
+// FileSize 指定 Reader 的字节数，已知时设置可让请求带上 Content-Length（否则使用 chunked）
+func (r ApiPcssuperfile2Request) FileSize(size int64) ApiPcssuperfile2Request {
+	r.fileSize = &size
 	return r
 }
 
@@ -147,23 +162,23 @@ func (a *FileuploadApiService) Pcssuperfile2Execute(r ApiPcssuperfile2Request) (
 	if localVarHTTPHeaderAccept != "" {
 		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
 	}
-	var fileLocalVarFormFileName string
-	var fileLocalVarFileName string
-	var fileLocalVarFileBytes []byte
-
-	fileLocalVarFormFileName = "file"
-
-	var fileLocalVarFile *os.File
-	if r.file != nil {
-		fileLocalVarFile = *r.file
+	formFileItem := formFile{formFileName: "file", fileSize: -1}
+	switch {
+	case r.fileReader != nil:
+		formFileItem.fileReader = r.fileReader
+		formFileItem.fileName = "chunk"
+		if r.fileSize != nil {
+			formFileItem.fileSize = *r.fileSize
+		}
+	case r.file != nil && *r.file != nil:
+		// 不再 ReadAll，也不在这里 Close：流式写入，文件句柄由调用方负责关闭
+		formFileItem.fileReader = *r.file
+		formFileItem.fileName = (*r.file).Name()
+		if st, err := (*r.file).Stat(); err == nil {
+			formFileItem.fileSize = st.Size()
+		}
 	}
-	if fileLocalVarFile != nil {
-		fbs, _ := _ioutil.ReadAll(fileLocalVarFile)
-		fileLocalVarFileBytes = fbs
-		fileLocalVarFileName = fileLocalVarFile.Name()
-		fileLocalVarFile.Close()
-	}
-	formFiles = append(formFiles, formFile{fileBytes: fileLocalVarFileBytes, fileName: fileLocalVarFileName, formFileName: fileLocalVarFormFileName})
+	formFiles = append(formFiles, formFileItem)
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err
@@ -407,6 +422,34 @@ type ApiXpanfileprecreateRequest struct {
 	blockList   *string
 	rtype       *int32
 	contentMD5  *string
+	uploadid    *string
+	sliceMD5    *string
+	localCTime  *string
+	localMTime  *string
+}
+
+// uploadid 继续断点续传时传入上一次预上传返回的 uploadid
+func (r ApiXpanfileprecreateRequest) Uploadid(uploadid string) ApiXpanfileprecreateRequest {
+	r.uploadid = &uploadid
+	return r
+}
+
+// slice-md5 文件校验段的 MD5，32 位小写，校验段对应文件前 256KB
+func (r ApiXpanfileprecreateRequest) SliceMD5(sliceMD5 string) ApiXpanfileprecreateRequest {
+	r.sliceMD5 = &sliceMD5
+	return r
+}
+
+// local_ctime 客户端创建时间，默认当前时间戳
+func (r ApiXpanfileprecreateRequest) LocalCTime(localCTime string) ApiXpanfileprecreateRequest {
+	r.localCTime = &localCTime
+	return r
+}
+
+// local_mtime 客户端修改时间，默认当前时间戳
+func (r ApiXpanfileprecreateRequest) LocalMTime(localMTime string) ApiXpanfileprecreateRequest {
+	r.localMTime = &localMTime
+	return r
 }
 
 func (r ApiXpanfileprecreateRequest) ContentMD5(md5 string) ApiXpanfileprecreateRequest {
@@ -542,6 +585,18 @@ func (a *FileuploadApiService) XpanfileprecreateExecute(r ApiXpanfileprecreateRe
 	}
 	if r.contentMD5 != nil {
 		localVarFormParams.Add("content-md5", parameterToString(*r.contentMD5, ""))
+	}
+	if r.uploadid != nil && *r.uploadid != "" {
+		localVarFormParams.Add("uploadid", parameterToString(*r.uploadid, ""))
+	}
+	if r.sliceMD5 != nil && *r.sliceMD5 != "" {
+		localVarFormParams.Add("slice-md5", parameterToString(*r.sliceMD5, ""))
+	}
+	if r.localCTime != nil && *r.localCTime != "" {
+		localVarFormParams.Add("local_ctime", parameterToString(*r.localCTime, ""))
+	}
+	if r.localMTime != nil && *r.localMTime != "" {
+		localVarFormParams.Add("local_mtime", parameterToString(*r.localMTime, ""))
 	}
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
