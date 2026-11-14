@@ -79,3 +79,37 @@ func TestPreCreateFileOmitsEmptyResumeFields(t *testing.T) {
 		require.False(t, form.Has(key), "空字段 %s 不应发送", key)
 	}
 }
+
+// TestPreCreateFileLargeSizeNotOverflow 验证超过 2GB 的文件大小不会被截断为 int32。
+func TestPreCreateFileLargeSizeNotOverflow(t *testing.T) {
+	var form url.Values
+	setTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		form = r.PostForm
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		_, _ = io.WriteString(w, `{"errno":0,"uploadid":"large-id","block_list":[1]}`)
+	})
+
+	const size = int64(5) * 1024 * 1024 * 1024 // 5GB
+	req := NewPreCreateFileReq("/apps/demo/large.bin", size, []string{"abcd"})
+	_, err := PreCreateFile("token", req)
+	require.NoError(t, err)
+	require.Equal(t, "5368709120", form.Get("size"))
+}
+
+// TestCreateFileLargeSizeNotOverflow 验证创建文件时同样保留 int64 大小。
+func TestCreateFileLargeSizeNotOverflow(t *testing.T) {
+	var form url.Values
+	setTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		_ = r.ParseForm()
+		form = r.PostForm
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		_, _ = io.WriteString(w, `{"errno":0,"fs_id":1}`)
+	})
+
+	const size = int64(5) * 1024 * 1024 * 1024
+	req := NewCreateFileReq("/apps/demo/large.bin", size, 0, "upload-id", []string{"abcd"})
+	_, err := CreateFile("token", req)
+	require.NoError(t, err)
+	require.Equal(t, "5368709120", form.Get("size"))
+}

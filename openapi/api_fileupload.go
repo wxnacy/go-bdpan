@@ -222,7 +222,7 @@ type ApiXpanfilecreateRequest struct {
 	accessToken *string
 	path        *string
 	isdir       *int32
-	size        *int32
+	size        *int64
 	uploadid    *string
 	blockList   *string
 	rtype       *int32
@@ -248,7 +248,7 @@ func (r ApiXpanfilecreateRequest) Isdir(isdir int32) ApiXpanfilecreateRequest {
 }
 
 // 与precreate的size值保持一致
-func (r ApiXpanfilecreateRequest) Size(size int32) ApiXpanfilecreateRequest {
+func (r ApiXpanfilecreateRequest) Size(size int64) ApiXpanfilecreateRequest {
 	r.size = &size
 	return r
 }
@@ -417,7 +417,7 @@ type ApiXpanfileprecreateRequest struct {
 	accessToken *string
 	path        *string
 	isdir       *int32
-	size        *int32
+	size        *int64
 	autoinit    *int32
 	blockList   *string
 	rtype       *int32
@@ -475,7 +475,7 @@ func (r ApiXpanfileprecreateRequest) Isdir(isdir int32) ApiXpanfileprecreateRequ
 }
 
 // size
-func (r ApiXpanfileprecreateRequest) Size(size int32) ApiXpanfileprecreateRequest {
+func (r ApiXpanfileprecreateRequest) Size(size int64) ApiXpanfileprecreateRequest {
 	r.size = &size
 	return r
 }

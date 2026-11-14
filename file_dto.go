@@ -374,7 +374,7 @@ func (f FileInfo) GetCategory() string {
 }
 
 // PreCreateFileReq 预上传请求参数
-func NewPreCreateFileReq(path string, size int32, blockList []string) *PreCreateFileReq {
+func NewPreCreateFileReq(path string, size int64, blockList []string) *PreCreateFileReq {
 	return &PreCreateFileReq{
 		Path:      path,
 		Size:      size,
@@ -391,7 +391,7 @@ type PreCreateFileReq struct {
 	// 上传后使用的文件绝对路径，需要urlencode
 	Path string
 	// 文件和目录两种情况：上传文件时，表示文件的大小，单位B；上传目录时，表示目录的大小，目录的话大小默认为0
-	Size int32
+	Size int64
 	// 是否为目录，0 文件，1 目录
 	Isdir int32
 	// 固定值1
@@ -502,7 +502,7 @@ type UploadFilePartRes struct {
 }
 
 // CreateFileReq 创建文件请求参数
-func NewCreateFileReq(path string, size int32, isdir int32, uploadid string, blockList []string) *CreateFileReq {
+func NewCreateFileReq(path string, size int64, isdir int32, uploadid string, blockList []string) *CreateFileReq {
 	return &CreateFileReq{
 		Path:      path,
 		Size:      size,
@@ -519,7 +519,7 @@ type CreateFileReq struct {
 	// 上传后使用的文件绝对路径，需要urlencode，需要与预上传precreate接口中的path保持一致
 	Path string
 	// 文件或目录的大小，必须要和文件真实大小保持一致，需要与预上传precreate接口中的size保持一致
-	Size int32
+	Size int64
 	// 是否目录，0 文件、1 目录，需要与预上传precreate接口中的isdir保持一致
 	Isdir int32
 	// 预上传precreate接口下发的uploadid

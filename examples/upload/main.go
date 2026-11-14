@@ -79,7 +79,7 @@ func uploadFile(accessToken, localFilePath, remoteFilePath string) error {
 	}
 
 	// 5. 预上传
-	preCreateReq := bdpan.NewPreCreateFileReq(remoteFilePath, int32(fileSize), blockList)
+	preCreateReq := bdpan.NewPreCreateFileReq(remoteFilePath, fileSize, blockList)
 	preCreateReq.ContentMD5 = fileMD5
 	preCreateRes, err := bdpan.PreCreateFile(accessToken, preCreateReq)
 	if err != nil {
@@ -175,7 +175,7 @@ func uploadFile(accessToken, localFilePath, remoteFilePath string) error {
 	}
 
 	// 7. 创建文件
-	createFileReq := bdpan.NewCreateFileReq(remoteFilePath, int32(fileSize), 0, preCreateRes.Uploadid, remoteBlockList)
+	createFileReq := bdpan.NewCreateFileReq(remoteFilePath, fileSize, 0, preCreateRes.Uploadid, remoteBlockList)
 	createFileRes, err := bdpan.CreateFile(accessToken, createFileReq)
 	if err != nil {
 		return fmt.Errorf("创建文件失败: %w", err)

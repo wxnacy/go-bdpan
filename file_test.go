@@ -101,7 +101,7 @@ func TestPreCreateFile(t *testing.T) {
 
 	// 准备测试数据
 	path := "/apps/bdpan/for_test/test_precreate.txt"
-	size := int32(1024) // 1KB
+	size := int64(1024) // 1KB
 	// 对于小于4MB的文件，block_list只包含一个MD5值
 	blockList := []string{"e08b8e863d2fffce685530608305598c"}
 
