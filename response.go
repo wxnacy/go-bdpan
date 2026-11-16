@@ -2,6 +2,7 @@ package bdpan
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 )
@@ -22,11 +23,27 @@ func (e ErrorRes) IsError() bool {
 	return e.Errno != 0 || e.ErrorMsg != ""
 }
 
+// Error 返回给用户看的错误文案。
+//
+// 服务端的说明字段优先级高于 errno 映射：errno=0 的异常响应（例如网关错误、
+// 只有 error 字段的分片失败）不能再显示成「请求成功」，否则会误导排查。
 func (e ErrorRes) Error() string {
-	if e.ErrorDesc != "" {
+	switch {
+	case e.ErrorDesc != "":
 		return e.ErrorDesc
+	case e.ShowMsg != "":
+		return e.ShowMsg
+	case e.ErrorMsg != "":
+		return e.ErrorMsg
+	case e.Errmsg != "":
+		return e.Errmsg
+	case e.StatusCode > 0:
+		return fmt.Sprintf("HTTP %d %s", e.StatusCode, http.StatusText(e.StatusCode))
+	case e.Errno != 0:
+		return GetApiErrByErrno(e.Errno).Error()
+	default:
+		return "未知错误"
 	}
-	return GetApiErrByErrno(e.Errno).Error()
 }
 
 // ToAPIError 把 SDK 返回的非 2xx 响应转换为带 HTTP 状态码与 show_msg 的结构化错误。
@@ -45,15 +62,34 @@ func ToAPIError(resp *http.Response, err error) error {
 	}
 
 	apiErr := &ErrorRes{StatusCode: resp.StatusCode}
+	var body []byte
 	if errWithBody, ok := err.(interface{ Body() []byte }); ok {
-		if body := errWithBody.Body(); len(body) > 0 {
+		body = errWithBody.Body()
+		if len(body) > 0 {
 			_ = json.Unmarshal(body, apiErr)
 		}
 	}
 	if apiErr.Errmsg == "" {
 		apiErr.Errmsg = resp.Status
 	}
+
+	// 错误分支此前不落日志，errno=0 的异常响应很难定位；把状态、响应体
+	// （含 request_id）记录下来，日志文件固定 DEBUG 级别，便于事后排查。
+	path := ""
+	if resp.Request != nil && resp.Request.URL != nil {
+		path = resp.Request.URL.Path
+	}
+	GetLogger().Debugf("%s error status=%d body=%s\n", path, resp.StatusCode, truncateLogBody(body))
 	return apiErr
+}
+
+// truncateLogBody 限制错误响应体的日志长度，避免网关返回整页 HTML 时刷屏。
+func truncateLogBody(body []byte) string {
+	const maxLen = 4096
+	if len(body) <= maxLen {
+		return string(body)
+	}
+	return string(body[:maxLen]) + "...(truncated)"
 }
 
 func ToInterface[T any](r *http.Response, args ...any) (*T, error) {

@@ -30,11 +30,36 @@ func TestIsRetryable(t *testing.T) {
 		{name: "旧 ApiErr 限流", err: &ApiErr{Errno: 4}, want: true},
 		{name: "旧 ApiErr 参数", err: &ApiErr{Errno: 2}, want: false},
 		{name: "包装后的错误", err: fmt.Errorf("upload: %w", &ErrorRes{StatusCode: 500}), want: true},
+		{name: "errno=0 但带 error 字段", err: &ErrorRes{ErrorMsg: "临时失败"}, want: true},
+		{name: "errno=0 的 502", err: &ErrorRes{StatusCode: 502}, want: true},
+		{name: "errno=0 的 404", err: &ErrorRes{StatusCode: 404, ErrorMsg: "不存在"}, want: false},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, IsRetryable(tt.err))
+		})
+	}
+}
+
+// TestErrorResMessage 验证错误文案优先使用服务端说明，不再把 errno=0 显示成「请求成功」。
+func TestErrorResMessage(t *testing.T) {
+	tests := []struct {
+		name string
+		err  ErrorRes
+		want string
+	}{
+		{name: "error_description 优先", err: ErrorRes{Errno: 0, ErrorDesc: "描述错误", ShowMsg: "提示"}, want: "描述错误"},
+		{name: "show_msg", err: ErrorRes{Errno: 0, ShowMsg: "请稍后重试"}, want: "请稍后重试"},
+		{name: "error 字段", err: ErrorRes{Errno: 0, ErrorMsg: "分片上传失败"}, want: "分片上传失败"},
+		{name: "errmsg", err: ErrorRes{Errno: 31023, Errmsg: "参数错误"}, want: "参数错误"},
+		{name: "HTTP 状态兜底", err: ErrorRes{Errno: 0, StatusCode: http.StatusBadGateway}, want: "HTTP 502 Bad Gateway"},
+		{name: "errno 映射", err: ErrorRes{Errno: 31023}, want: "参数错误"},
+		{name: "errno=0 且无说明", err: ErrorRes{}, want: "未知错误"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, tt.err.Error())
 		})
 	}
 }

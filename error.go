@@ -325,7 +325,8 @@ var (
 
 // IsRetryable 判断错误是否值得重试。
 //
-// 可重试：网络错误、超时、HTTP 5xx/408/429、限流与临时性服务端错误。
+// 可重试：网络错误、超时、HTTP 5xx/408/429、限流、errno=0 的异常响应
+// （通常是网关/服务端临时异常）等临时性错误。
 // 不可重试：参数错误、鉴权失败、权限不足、配额/大小超限、文件不存在等。
 // context.Canceled 一律视为不可重试。
 func IsRetryable(err error) bool {
@@ -344,7 +345,13 @@ func IsRetryable(err error) bool {
 		if apiErr.Errno != 0 {
 			return isRetryableErrno(apiErr.Errno)
 		}
-		return false
+		// 4xx（除 408/429）是确定性错误，即使带着 error 字段也不重试。
+		if apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 {
+			return false
+		}
+		// errno=0 但仍被判为错误的响应（例如只有 error/show_msg 字段的分片失败）
+		// 通常是网关或服务端临时异常，按可重试处理。
+		return apiErr.IsError()
 	}
 
 	var legacyErr *ApiErr
@@ -363,11 +370,10 @@ func IsRetryable(err error) bool {
 }
 
 func isRetryableStatus(statusCode int) bool {
-	switch statusCode {
-	case 408, 429, 500, 502, 503, 504:
+	if statusCode == 408 || statusCode == 429 {
 		return true
 	}
-	return false
+	return statusCode >= 500 && statusCode <= 599
 }
 
 func isRetryableErrno(errno int32) bool {
