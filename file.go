@@ -269,6 +269,7 @@ func CreateFileWithContext(ctx context.Context, accessToken string, req *CreateF
 		Rtype(req.Rtype).
 		Uploadid(req.Uploadid).
 		BlockList(req.GetBlockListString()).
+		LocalMTime(req.LocalMTime).
 		Execute()
 	if err != nil {
 		return nil, ToAPIError(r, err)
