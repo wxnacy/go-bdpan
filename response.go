@@ -13,6 +13,10 @@ type ErrorRes struct {
 	Errmsg    string `json:"errmsg,omitempty"`
 	ErrorMsg  string `json:"error,omitempty"`
 	ErrorDesc string `json:"error_description,omitempty"`
+	// PCSErrno / PCSMsg 是 PCS 分片接口的错误字段（error_code/error_msg），
+	// 与上面 xpan 接口的 errno/errmsg 并存，例如 403 -11015 dest idc equal src idc。
+	PCSErrno int32  `json:"error_code,omitempty"`
+	PCSMsg   string `json:"error_msg,omitempty"`
 	// ShowMsg 是服务端返回给用户看的提示信息
 	ShowMsg string `json:"show_msg,omitempty"`
 	// StatusCode 是 HTTP 状态码，仅本地填充，不参与 JSON 编解码
@@ -20,7 +24,7 @@ type ErrorRes struct {
 }
 
 func (e ErrorRes) IsError() bool {
-	return e.Errno != 0 || e.ErrorMsg != ""
+	return e.Errno != 0 || e.ErrorMsg != "" || e.PCSErrno != 0 || e.PCSMsg != ""
 }
 
 // Error 返回给用户看的错误文案。
@@ -33,6 +37,8 @@ func (e ErrorRes) Error() string {
 		return e.ErrorDesc
 	case e.ShowMsg != "":
 		return e.ShowMsg
+	case e.PCSMsg != "":
+		return e.PCSMsg
 	case e.ErrorMsg != "":
 		return e.ErrorMsg
 	case e.Errmsg != "":

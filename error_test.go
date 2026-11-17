@@ -33,6 +33,8 @@ func TestIsRetryable(t *testing.T) {
 		{name: "errno=0 但带 error 字段", err: &ErrorRes{ErrorMsg: "临时失败"}, want: true},
 		{name: "errno=0 的 502", err: &ErrorRes{StatusCode: 502}, want: true},
 		{name: "errno=0 的 404", err: &ErrorRes{StatusCode: 404, ErrorMsg: "不存在"}, want: false},
+		{name: "PCS IDC 路由异常", err: &ErrorRes{StatusCode: 403, PCSErrno: -11015}, want: true},
+		{name: "PCS 其他错误", err: &ErrorRes{StatusCode: 403, PCSErrno: -11000}, want: false},
 	}
 
 	for _, tt := range tests {
@@ -53,6 +55,7 @@ func TestErrorResMessage(t *testing.T) {
 		{name: "show_msg", err: ErrorRes{Errno: 0, ShowMsg: "请稍后重试"}, want: "请稍后重试"},
 		{name: "error 字段", err: ErrorRes{Errno: 0, ErrorMsg: "分片上传失败"}, want: "分片上传失败"},
 		{name: "errmsg", err: ErrorRes{Errno: 31023, Errmsg: "参数错误"}, want: "参数错误"},
+		{name: "PCS error_msg", err: ErrorRes{StatusCode: 403, PCSErrno: -11015, PCSMsg: "dest idc equal src idc"}, want: "dest idc equal src idc"},
 		{name: "HTTP 状态兜底", err: ErrorRes{Errno: 0, StatusCode: http.StatusBadGateway}, want: "HTTP 502 Bad Gateway"},
 		{name: "errno 映射", err: ErrorRes{Errno: 31023}, want: "参数错误"},
 		{name: "errno=0 且无说明", err: ErrorRes{}, want: "未知错误"},
@@ -80,6 +83,23 @@ func TestToAPIError(t *testing.T) {
 		require.Equal(t, int32(-1), apiErr.Errno)
 		require.Equal(t, http.StatusServiceUnavailable, apiErr.StatusCode)
 		require.Equal(t, "请稍后重试", apiErr.ShowMsg)
+		require.True(t, IsRetryable(err))
+	})
+
+	t.Run("403 PCS IDC 错误可重试", func(t *testing.T) {
+		setTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+			_, _ = io.WriteString(w, `{"error_code":-11015,"error_msg":"dest idc equal src idc"}`)
+		})
+
+		_, err := PreCreateFile("token", NewPreCreateFileReq("/apps/demo/a.bin", 4, []string{"abcd"}))
+		require.Error(t, err)
+
+		var apiErr *ErrorRes
+		require.True(t, errors.As(err, &apiErr))
+		require.Equal(t, int32(-11015), apiErr.PCSErrno)
+		require.Equal(t, http.StatusForbidden, apiErr.StatusCode)
+		require.Equal(t, "dest idc equal src idc", err.Error())
 		require.True(t, IsRetryable(err))
 	})
 

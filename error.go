@@ -345,6 +345,11 @@ func IsRetryable(err error) bool {
 		if apiErr.Errno != 0 {
 			return isRetryableErrno(apiErr.Errno)
 		}
+		// PCS 分片接口用 error_code/error_msg 表示业务错误，需单独判断，
+		// 否则 -11015（IDC 路由异常）会被下面的 4xx 规则误判为不可重试。
+		if apiErr.PCSErrno != 0 {
+			return isRetryableErrno(apiErr.PCSErrno)
+		}
 		// 4xx（除 408/429）是确定性错误，即使带着 error 字段也不重试。
 		if apiErr.StatusCode >= 400 && apiErr.StatusCode < 500 {
 			return false
@@ -379,7 +384,8 @@ func isRetryableStatus(statusCode int) bool {
 func isRetryableErrno(errno int32) bool {
 	switch errno {
 	// -1 操作失败、1 未知错误、4/9013/9019/31034 限流、31341 转码中
-	case -1, 1, 4, 9013, 9019, 31034, 31341:
+	// -11015 PCS 分片上传 IDC 路由异常（dest idc equal src idc），重新请求可落到正常节点
+	case -1, 1, 4, 9013, 9019, 31034, 31341, -11015:
 		return true
 	}
 	return false
