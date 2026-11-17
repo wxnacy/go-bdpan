@@ -62,6 +62,9 @@ func NewGetFileListAllReq(path string) *GetFileListAllReq {
 		Recursion: 1, // Recursive
 		Limit:     1000,
 		Start:     0,
+		// 固定按文件名排序：默认 order=time 在大量同秒文件上排序键并列，
+		// 服务端翻页会出现相邻页重复、部分条目漏返回（见 bdpan-cli DBG-001）。
+		Order: "name",
 	}
 }
 
